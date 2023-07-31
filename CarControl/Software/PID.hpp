@@ -6,6 +6,7 @@ class PID {
   private:
     std::uint8_t buffer[72];
     void *handler;
+    float output;
 
   public:
     PID(void);
@@ -21,7 +22,9 @@ class PID {
     void setOutputLimits(float min, float max);
 
     void setReal(float real);
+    float getReal(void);
     void setTarget(float target);
+    float getTarget(void);
     float getOutput(void);
 
     float compute(void);

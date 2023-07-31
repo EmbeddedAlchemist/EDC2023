@@ -3,17 +3,18 @@
 #include "ExLib_Exception.hpp"
 #include "ExLib_FreeRTOS.hpp"
 #include "ExLib_System.hpp"
+#include "../Source/FreeRTOS/FreeRTOSSupport.hpp"
 
 namespace ExLib {
 
 void mainTask(void *unusedParam) {
     int retCode;
     retCode = usr_main();
-    System::log_w("usr_main function has return with code %d, main task deleted.", retCode);
+    System::log_w("usr_main function has return with code %d, main task will be deleted.", retCode);
     Task::deleteCurrent();
 }
 
-Task mainTaskObj(mainTask,nullptr, "MainTask", 1, 256);
+Task mainTaskObj(mainTask, nullptr, "MainTask", 1, 256);
 
 void ExLib_Init(void) {
     System::init();

@@ -19,6 +19,7 @@
 #include "ExLib_Printable.hpp"
 #include "ExLib_PrintStream.hpp"
 #include "ExLib_ScanStream.hpp"
+#include "ExLib_FreeRTOS.hpp"
 
 //main
 #include "ExLib_Main.hpp"

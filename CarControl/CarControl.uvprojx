@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>PART_TM4C123GH6PM, ARDUINO</Define>
               <Undefine></Undefine>
-              <IncludePath>.\ExLib\Include;.\Hardware</IncludePath>
+              <IncludePath>.\ExLib\Include;.\Hardware;.\Software</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -842,6 +842,13 @@
         </Group>
         <Group>
           <GroupName>Software</GroupName>
+          <Files>
+            <File>
+              <FileName>PID.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>.\Software\PID.cpp</FilePath>
+            </File>
+          </Files>
         </Group>
         <Group>
           <GroupName>ControlLib</GroupName>

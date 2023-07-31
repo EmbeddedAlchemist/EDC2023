@@ -5,6 +5,7 @@
             "includePath": [
                 "c:\\Users\\CHALLENGER\\Documents\\KeXieData\\Project\\EDC2023\\CarControl\\ExLib\\Include",
                 "c:\\Users\\CHALLENGER\\Documents\\KeXieData\\Project\\EDC2023\\CarControl\\Hardware",
+                "c:\\Users\\CHALLENGER\\Documents\\KeXieData\\Project\\EDC2023\\CarControl\\Software",
                 "C:\\Keil_v5\\ARM\\ARMCLANG\\include",
                 "C:\\Keil_v5\\ARM\\ARMCLANG\\include\\arm_linux",
                 "C:\\Keil_v5\\ARM\\ARMCLANG\\include\\arm_linux_compat",

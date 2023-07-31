@@ -23,7 +23,7 @@ const char *Exception::lastExceptionMessage = nullptr;
 
 void Exception::hardFaultHandler() {
     if (System::_debugStream != nullptr) {
-        System::_debugStream->print("[FATAL ERROR] Hard Fault Raised.");
+        System::_debugStream->print("[ERROR] Hard Fault Raised.");
     }
     while (true) {
     }
@@ -37,7 +37,7 @@ void Exception::raiseException(const char *message, ...) {
     Exception::lastExceptionMessage = message;
     if (System::_debugStream != nullptr) {
         System::printExLibLOGO();
-        System::_debugStream->vprintf("[FATAL ERROR] Exception Raised. Message: %s", args);
+        System::_debugStream->vprintf("[ERROR] Exception Raised. Message: %s", args);
     }
     va_end(args);
     raiseHardFault();
@@ -45,9 +45,7 @@ void Exception::raiseException(const char *message, ...) {
         ;
 }
 void Exception::raiseHardFault() {
-    if (System::_debugStream != nullptr) {
-        System::_debugStream->println("[NOTICE] Raising Hard Fault...");
-    }
+    System::log_w("Raising Hard Fault...");
     *(volatile std::uint32_t *)0xFFFFFFFF = *(volatile std::uint32_t *)0xFFFFFFFF;
 }
 } // namespace ExLib

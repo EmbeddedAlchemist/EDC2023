@@ -49,14 +49,23 @@ void PID::setReal(float real) {
     PID_setFbackValue((PID_Handle)handler, real);
 }
 
+float PID::getReal(void) {
+    return PID_getFbackValue((PID_Handle)handler);
+}
+
 void PID::setTarget(float target) {
     PID_setRefValue((PID_Handle)handler, target);
 }
 
+float PID::getTarget(void) {
+    return PID_getRefValue((PID_Handle)handler);
+}
+
 float PID::getOutput(void) {
-   // return PID_getFfwdValue()
+    return output;
 }
 
 float PID::compute(void) {
-    
+    PID_run_parallel((PID_Handle)handler, getTarget(), getReal(), 0.0f, &output);
+    return output;
 }

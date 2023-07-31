@@ -83,6 +83,7 @@ std::uint32_t System::getMicroseconds(void) {
 }
 
 static void busyDelayUs(volatile uint32_t us) {
+    us *= 2000;
     while (us--)
         ;
 }

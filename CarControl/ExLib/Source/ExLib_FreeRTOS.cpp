@@ -11,7 +11,6 @@ Task::Task(void (*taskFunction)(void *), void *param, const char *taskName, std:
       taskHandler(nullptr) {
 }
 
-
 Task::~Task() {
     end();
 }
@@ -47,6 +46,34 @@ Task_State Task::getState() {
 
 void Task::deleteCurrent() {
     vTaskDelete(NULL);
+}
+
+void *queueCreate(std::size_t length, std::size_t unitSize) {
+    return xQueueCreate(length, unitSize);
+}
+
+void queueSendBlocking(void *handler, void *data) {
+    xQueueSend((QueueHandle_t)handler, data, portMAX_DELAY);
+}
+
+bool queueSendWithTimeout(void *handler, void *data, TimeInterval timeout) {
+    return xQueueSend((QueueHandle_t)handler, data, timeout.us / 1000 / portTICK_PERIOD_MS) == pdPASS;
+}
+
+void queueReceiveBlocking(void *handler, void *data) {
+    xQueueReceive((QueueHandle_t)handler, data, portMAX_DELAY);
+}
+
+void queueReceiveWithTimeout(void *handler, void *data, TimeInterval timeout) {
+    xQueueReceive((QueueHandle_t)handler, data, timeout.us / 1000 / portTICK_PERIOD_MS);
+}
+
+std::size_t queueGetAvailable(void *handler){
+    return uxQueueMessagesWaiting((QueueHandle_t)handler);
+}
+
+std::size_t queueGetRemain(void *handler){
+    return uxQueueSpacesAvailable((QueueHandle_t)handler);
 }
 
 } // namespace ExLib
