@@ -112,7 +112,7 @@ PWM_Channel Motor0B(Motor0PWMGenerator, 7, GPIO_Pin::PD1);
 Motor Motor0(Motor0A, Motor0B);
 QuadraticEncoder Motor0Encoder(QuadraticEncoder_Periph::QuadraticEncoder1, GPIO_Pin::PC5, GPIO_Pin::PC6);
 
-PID Motor0PID(1.0 / 8000, 0, 0);
+PID_Add Motor0PID(0.0035 , 0.0005, 0.0);
 
 HardwarePWM Motor1PWMGenerator(HardwarePWM_Periph::Module1Generator3);
 PWM_Channel Motor1A(Motor1PWMGenerator, 7, GPIO_Pin::PF3);
@@ -120,18 +120,27 @@ PWM_Channel Motor1B(Motor1PWMGenerator, 6, GPIO_Pin::PF2);
 Motor Motor1(Motor1A, Motor1B);
 QuadraticEncoder Motor1Encoder(QuadraticEncoder_Periph::QuadraticEncoder0, GPIO_Pin::PF0, GPIO_Pin::PF1);
 
+PID_Add Motor1PID(0.0035 , 0.0005, 0.0);
+
 int ExLib::usr_main() {
+    System::delay(500_ms);
     UART0.begin(115200);
     System::setDebugStream(UART0);
     Motor0Encoder.begin(true);
+    Motor1Encoder.begin(true);
     Motor0PID.setOutputLimits(-1, 1);
-    Motor0PID.setTarget(5000);
+    Motor0PID.setTarget(100);
+    Motor1PID.setOutputLimits(-1, 1);
+    Motor1PID.setTarget(100);
     while (true) {
         Motor0Encoder.resetCounter();
+        Motor1Encoder.resetCounter();
         System::delay(50_ms);
         Motor0PID.setReal(Motor0Encoder.getCounter());
+        Motor1PID.setReal(Motor1Encoder.getCounter());
         Motor0.run(Motor0PID.compute());
-        UART0.printf("Output %f, Real %f, Target %f\n", Motor0PID.getOutput(), Motor0PID.getReal(), Motor0PID.getTarget());
+        Motor1.run(Motor1PID.compute());
+        UART0.printf("Output=%f, Real=%f, Target=%f\n", Motor0PID.getOutput(), Motor0PID.getReal(), Motor0PID.getTarget());
     }
     return 0;
 }

@@ -5,7 +5,10 @@ ReadStreamBuffered::ReadStreamBuffered(BufferFIFO<char> &buffer)
     : buffer(buffer) {
 }
 bool ReadStreamBuffered::read(char &ch) {
-    return true; // buffer.read(ch);
+    if(buffer.avaliable()==false)
+        return false;
+    buffer.read(ch);
+    return true;
 }
 bool ReadStreamBuffered::peek(char &ch) {
     return false;

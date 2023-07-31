@@ -18,8 +18,10 @@ std::size_t ReadStream::read(char *buf, std::size_t len) {
 
 std::size_t ReadStream::readUntil(char *buf, char endChar) {
     std::size_t readCount = 0;
-    while (read(buf[readCount]) != false && buf[readCount] != endChar) {
+    while (read(buf[readCount]) != false) {
         readCount++;
+        if(buf[readCount] == endChar)
+            break;
     }
     return readCount;
 }

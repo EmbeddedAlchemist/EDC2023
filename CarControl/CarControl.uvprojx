@@ -850,21 +850,6 @@
             </File>
           </Files>
         </Group>
-        <Group>
-          <GroupName>ControlLib</GroupName>
-          <Files>
-            <File>
-              <FileName>filter_fo.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Software\Libraries\filter_fo.c</FilePath>
-            </File>
-            <File>
-              <FileName>pid.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\Software\Libraries\pid.c</FilePath>
-            </File>
-          </Files>
-        </Group>
       </Groups>
     </Target>
   </Targets>

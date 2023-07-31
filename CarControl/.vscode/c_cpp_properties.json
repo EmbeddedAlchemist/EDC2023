@@ -14,8 +14,7 @@
                 "c:\\Users\\CHALLENGER\\Documents\\KeXieData\\Project\\EDC2023\\CarControl\\ExLib\\Source\\DeviceSupport\\startup",
                 "c:\\Users\\CHALLENGER\\Documents\\KeXieData\\Project\\EDC2023\\CarControl\\ExLib\\Source",
                 "c:\\Users\\CHALLENGER\\Documents\\KeXieData\\Project\\EDC2023\\CarControl\\User",
-                "c:\\Users\\CHALLENGER\\Documents\\KeXieData\\Project\\EDC2023\\CarControl\\ExLib\\Source\\FreeRTOS",
-                "c:\\Users\\CHALLENGER\\Documents\\KeXieData\\Project\\EDC2023\\CarControl\\Software\\Libraries"
+                "c:\\Users\\CHALLENGER\\Documents\\KeXieData\\Project\\EDC2023\\CarControl\\ExLib\\Source\\FreeRTOS"
             ],
             "defines": [
                 "PART_TM4C123GH6PM",
