@@ -838,6 +838,11 @@
               <FileType>8</FileType>
               <FilePath>.\Hardware\Motor.cpp</FilePath>
             </File>
+            <File>
+              <FileName>Servo.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>.\Hardware\Servo.cpp</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

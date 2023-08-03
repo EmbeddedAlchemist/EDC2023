@@ -1,0 +1,504 @@
+C51 COMPILER V9.60.7.0   1                                                                 08/02/2023 17:01:26 PAGE 1   
+
+
+C51 COMPILER V9.60.7.0, COMPILATION OF MODULE 1
+OBJECT MODULE PLACED IN .\Objects\1.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE 1.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\1.lst) 
+                    -OBJECT(.\Objects\1.obj)
+
+line level    source
+
+   1          /*************************************
+   2          LCR表驱动程序 V1.0
+   3          xjw01 于莆田 2011.10
+   4          **************************************/
+   5          //====================================
+   6          #define uchar unsigned char
+   7          #define uint  unsigned int
+   8          #define ulong  unsigned long
+   9          #include <reg52.h>
+  10          #include <math.h>
+  11          
+  12          void delay(uint loop) { uint i; for(i=0;i<loop;i++); } //延时函数
+  13          void delay2(uint k){ for(;k>0;k--) delay(10000); } //长延时,k=100大约对应1秒
+  14          
+  15          //========================AD转换=============================
+  16          sfr P1ASF = 0x9D; //将P1置为模拟口寄存器(使能),各位中为1的有效
+  17          sfr ADC_CONTR = 0xBC; //A/D转换控制寄存器
+  18          sfr ADC_res   = 0xBD; //A/D转换结果寄存器
+  19          sfr ADC_resl  = 0xBE; //A/D转换结果寄存器
+  20          
+  21          void set_channel(char channel){
+  22   1      P1ASF = 1<<channel;
+  23   1      ADC_CONTR = channel+128; //最高位是电源开关,低3位通道选择
+  24   1      delay(1); //首次打开电源应延迟，使输入稳定
+  25   1      }
+  26          
+  27          
+  28          
+  29          
+  30          
+  31          uint getAD2(){
+  32   1      ADC_CONTR |= 0x08;             //00001000,置ADC_START=1启动A/D 转换
+  33   1      while ( !(ADC_CONTR & 0x10) ); //等待A/D转换结束(ADC_FLAG==0)
+  34   1      ADC_CONTR &= 0xE7;             //11100111,置ADC_FLAG=0清除结束标记, 置ADC_START=0关闭A/D 转换
+  35   1      return ADC_res*4 + ADC_resl;
+  36   1      }
+  37          /*
+  38          uchar get_AD(){
+  39          ADC_CONTR |= 0x08;             //00001000,置ADC_START=1启动A/D 转换
+  40          while( !(ADC_CONTR & 0x10) );  //等待A/D转换结束(ADC_FLAG==0)
+  41          ADC_CONTR &= 0xE7;             //11100111,置ADC_FLAG=0清除结束标记, 置ADC_START=0关闭A/D 转换
+  42          return ADC_res;
+  43          }
+  44          */
+  45          uint getAD10() reentrant { //10次采样
+  46   1      char i;
+  47   1      uint c = 0;
+  48   1      for(i=0;i<10;i++) c += getAD2();
+  49   1      return c;
+  50   1      }
+  51          
+  52          
+  53          //============================EEPROW偏程=========================
+  54          sfr IAP_data  = 0xC2;
+C51 COMPILER V9.60.7.0   1                                                                 08/02/2023 17:01:26 PAGE 2   
+
+  55          sfr IAP_addrH = 0xC3;
+  56          sfr IAP_addrL = 0xC4;
+  57          sfr IAP_cmd   = 0xC5;
+  58          sfr IAP_trig  = 0xC6;
+  59          sfr IAP_contr = 0xC7;
+  60          /********************
+  61          写字节时，可以将原有数据中的1改为0，无法将0改为1，只能使用擦除命令将0改为1
+  62          应注意，擦除命令会将整个扇区擦除
+  63          *********************/
+  64          uchar readEEP(uint k){ //读取
+  65   1      IAP_addrL = k;    //设置读取地址的低字节，地址改变才需要设置
+  66   1      IAP_addrH = k>>8; //设置读取地址的高字节，地址改变才需要设置
+  67   1      IAP_contr = 0x81; //设置等待时间，1MHz以下取7，2M以下取6，3M取5，6M取4，12M取3，20M取2，24M取1，30M取0，前
+             -导1表示许档IAP
+  68   1      IAP_cmd = 1;      //读取值1，写取2，擦除取3，擦除时按所在字节整个扇区撺除
+  69   1      IAP_trig = 0x5A;  //先送5A
+  70   1      IAP_trig = 0xA5;  //先送5A再送A5立即触发
+  71   1      return IAP_data;
+  72   1      }
+  73          void writeEEP(uint k, uchar da){ //写入
+  74   1      IAP_data = da;    //传入数据
+  75   1      IAP_addrL = k;    //设置读取地址的低字节，地址改变才需要设置
+  76   1      IAP_addrH = k>>8; //设置读取地址的高字节，地址改变才需要设置
+  77   1      IAP_contr = 0x81; //设置等待时间，1MHz以下取7，2M以下取6，3M取5，6M取4，12M取3，20M取2，24M取1，30M取0，前
+             -导1表示许档IAP
+  78   1      IAP_cmd = 2;      //读取值1，写取2，擦除取3，擦除时按所在字节整个扇区撺除
+  79   1      IAP_trig = 0x5A;  //先送5A
+  80   1      IAP_trig = 0xA5;  //先送5A再送A5立即触发
+  81   1      }
+  82          void eraseEEP(uint k){ //擦除
+  83   1      IAP_addrL = k;    //设置读取地址的低字节，地址改变才需要设置
+  84   1      IAP_addrH = k>>8; //设置读取地址的高字节，地址改变才需要设置
+  85   1      IAP_contr = 0x81; //设置等待时间，1MHz以下取7，2M以下取6，3M取5，6M取4，12M取3，20M取2，24M取1，30M取0，前
+             -导1表示许档IAP
+  86   1      IAP_cmd = 3;      //读取值1，写取2，擦除取3，擦除时按所在字节整个扇区撺除
+  87   1      IAP_trig = 0x5A;  //先送5A
+  88   1      IAP_trig = 0xA5;  //先送5A再送A5立即触发
+  89   1      }
+  90          
+  91          xdata struct Ida{
+  92          char zo;    //零点改正值
+  93          } cs;
+  94          
+  95          void cs_RW(char rw){
+  96   1      uchar i,*p = &cs;
+  97   1      if(rw){
+  98   2        eraseEEP(0);
+  99   2        for(i=0;i<sizeof(cs);i++) writeEEP(i,p);
+*** WARNING C214 IN LINE 99 OF 1.c: 'Argument': conversion: pointer to non-pointer
+ 100   2      }else{
+ 101   2        for(i=0;i<sizeof(cs);i++) p=readEEP(i);
+*** ERROR C214 IN LINE 101 OF 1.c: illegal pointer conversion
+ 102   2      }
+ 103   1      }
+ 104          
+ 105          /**********
+ 106          字形编码图
+ 107             32
+ 108             -
+ 109          64| | 128
+ 110             -  16
+ 111          1| | 8
+C51 COMPILER V9.60.7.0   1                                                                 08/02/2023 17:01:26 PAGE 3   
+
+ 112             _. 4
+ 113             2
+ 114          **********/
+ 115          uchar code zk[20]={235,136,179,186,216,122,123,168,251,250}; //字库
+ 116          uchar code zk2[8]={241,25,11,233,27,50,155,107};//p,n,u,m,0,k,M,G
+ 117          
+ 118          uchar disp[6]={168,251,250}; char cx=-1; //显示缓存,cx光标位置
+ 119          sfr P1M1=0x91; //P1端口设置寄存器
+ 120          sfr P1M0=0x92; //P1端口设置寄存器
+ 121          sfr P0M1=0x93; //P0端口设置寄存器
+ 122          sfr P0M0=0x94; //P0端口设置寄存器
+ 123          sfr P2M1=0x95; //P2端口设置寄存器
+ 124          sfr P2M0=0x96; //P2端口设置寄存器
+ 125          sfr P3M1=0xB1; //P3端口设置寄存器
+ 126          sfr P3M0=0xB2; //P3端口设置寄存器
+ 127          
+ 128          sbit ds3=P2^4; //数码管扫描口
+ 129          sbit ds2=P2^5; //数码管扫描口
+ 130          sbit ds1=P2^6; //数码管扫描口
+ 131          sbit ds0=P2^7; //数码管扫描口
+ 132          
+ 133          sbit spk=P2^3; //蜂鸣器
+ 134          sbit Kb=P2^1; //量程开关B
+ 135          sbit Ka=P2^2; //量程开关A
+ 136          
+ 137          sbit DDS2=P1^2;//移相方波输出口
+ 138          sbit K3=P1^7;
+ 139          sbit K4=P1^6;
+ 140          sbit K5=P1^5; //7.8kHz滤波开关
+ 141          sbit K6=P1^4;
+ 142          sbit K8=P2^0; //100Hz滤波开关
+ 143          
+ 144          
+ 145          
+ 146          //==============字符显示函数====================
+ 147          xdata uchar menu=1,menuB=1;
+ 148          void cls(){ char i; for(i=0;i<6;i++) disp=0; } //清屏
+ 149          void showDig(long f){ //显示数字
+ 150   1      uchar i;
+ 151   1      cls();
+ 152   1      for(i=0;i<6;i++) { disp=zk[f%10], f/=10; if(!f) break; }
+ 153   1      }
+ 154          void showDig2(float f,char dw){ //显示浮点数
+ 155   1        char i,b=0,b2=0,fh=0;
+ 156   1        if(f<0) fh=1,f=-f;
+ 157   1        for(i=0;i<3;i++){ if(f>=1000) f/=1000, b++;  } //以3位为单位移动小数点，把大数转粉0至999,小数点在末字
+ 158   1        for(i=0;i<4;i++){ if(f<1)     f*=1000, b--;  } //以3位为单位移动小数点，把小数转粉0至999,小数点在末字
+ 159   1        for(i=0;i<3;i++){ if(f<1000)  f*=10,   b2++; } //对以于1000结果，连同小数点整体移位，使首位移到最左边
+ 160   1        showDig(f);
+ 161   1        disp[b2] += 4; //小数点
+ 162   1        if(!dw) return;
+ 163   1        disp[0] = zk2[b+4];  //显示单位
+ 164   1        if(fh) disp[0] += 4; //显示符号
+ 165   1      }
+ 166          
+ 167          
+ 168          
+ 169          //==============低频信号DDS====================
+ 170          //PCA相关寄存器
+ 171          sfr CMOD = 0xD9;   //钟源选择控制等
+ 172          sfr CH = 0xF9;     //PCA的计数器
+ 173          sfr CL = 0xE9;     //PCA的计数器
+C51 COMPILER V9.60.7.0   1                                                                 08/02/2023 17:01:26 PAGE 4   
+
+ 174          sfr CCON = 0xD8;   //PCA控制寄存器
+ 175          sfr CCPAM0 = 0xDA; //PCA模块0工作模式寄存器
+ 176          sfr CCPAM1 = 0xDB; //PCA模块1工作模式寄存器
+ 177          sfr CCAP0L = 0xEA; //模块0捕获寄存器低位
+ 178          sfr CCAP0H = 0xFA; //模块0捕获寄存器高位
+ 179          
+ 180          sbit PPCA  = IP^7;   //PCA的中断优先级设置
+ 181          sbit CCF0  = CCON^0; //PCA的模块0中断标志
+ 182          sbit CCF1  = CCON^1; //PCA的模块1中断标志
+ 183          sbit CR = CCON^6;    //PCA计数器使能
+ 184          
+ 185          void PWM_init(){ //把PCA置为PWM
+ 186   1        CMOD = 2;   //0000 0010 计数源选择,钟源取fosc/2
+ 187   1        CL = CH = 0;
+ 188   1        CCAP0L = CCAP0H = 192; //占空比为25%
+ 189   1        //CCPAM0=0x42;//0100 0010,PCA的模块0设置为PWM模式,无中断
+ 190   1        CCPAM0=0x53;//0101 0011,PCA的模块0设置为PWM模式,有中断，下降沿中断
+ 191   1        PPCA = 1;   //优先中断
+ 192   1        //CR = 1;   //开始计数
+ 193   1        EA = 1;     //开总中断
+ 194   1      }
+ 195          
+ 196          uint ph=0, phM=256, feq=1000; //相位,phM相位步进值
+ 197          uchar code sinB[256]={
+ 198          //查询表中不可装载零值，否则会造成无中断产生
+ 199          255,255,255,255,255,255,254,254,253,252,252,251,250,249,248,247,246,245,243,242,240,239,237,236,234,232,23
+             -0,229,227,225,222,220,
+ 200          218,216,214,211,209,206,204,201,199,196,194,191,188,185,183,180,177,174,171,168,165,162,159,156,153,150,14
+             -7,144,140,137,134,131,
+ 201          128,125,122,119,116,112,109,106,103,100, 97, 94, 91, 88, 85, 82, 79, 76, 73, 71, 68, 65, 62, 60, 57, 55, 5
+             -2, 50, 47, 45, 42, 40,
+ 202            38, 36, 34, 31, 29, 27, 26, 24, 22, 20, 19, 17, 16, 14, 13, 11, 10,  9,  8,  7,  6,  5,  4,  4,  3,  2, 
+             - 2,  1,  1,  1,  1,  1,
+ 203             1,  1,  1,  1,  1,  1,  2,  2,  3,  4,  4,  5,  6,  7,  8,  9, 10, 11, 13, 14, 16, 17, 19, 20, 22, 24, 
+             -26, 27, 29, 31, 34, 36,
+ 204            38, 40, 42, 45, 47, 50, 52, 55, 57, 60, 62, 65, 68, 71, 73, 76, 79, 82, 85, 88, 91, 94, 97,100,103,106,1
+             -09,112,116,119,122,125,
+ 205          128,131,134,137,140,144,147,150,153,156,159,162,165,168,171,174,177,180,183,185,188,191,194,196,199,201,20
+             -4,206,209,211,214,216,
+ 206          218,220,222,225,227,229,230,232,234,236,237,239,240,242,243,245,246,247,248,249,250,251,252,252,253,254,25
+             -4,255,255,255,255,255
+ 207          };
+ 208          uchar code fbB[256]={ //方波DDS查询表
+ 209          0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+ 210          0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+ 211          0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+ 212          0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+ 213          1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+ 214          1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+ 215          1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+ 216          1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+ 217          };
+ 218          uchar chuX=0; //方波DDS初相
+ 219          void PCAinter(void) interrupt 7 {//PCA中断
+ 220   1        uchar x,y;
+ 221   1        CCF0=0; //清除中断请求,以免反复中断
+ 222   1        x = ph >> 8;     //截断正弦相位累加器,取高8位
+ 223   1        y = x + chuX;    //方波相位
+ 224   1        CCAP0H = sinB[x];//正弦DDS输出
+ 225   1        DDS2 = fbB[y];   //方波DDS输出
+ 226   1        ph += phM;       //相位累加
+ 227   1      }
+C51 COMPILER V9.60.7.0   1                                                                 08/02/2023 17:01:26 PAGE 5   
+
+ 228          void setDDS(uint f){ //参考时钟是c=(fosc/2)/256=32000000/2/256=62500,频率f=c*phM/2^16
+ 229   1      feq = f;
+ 230   1      phM=f*65536.0/62500; //phM=f*2^16/62500
+ 231   1      ph = 0;              //高频时，使波形对称
+ 232   1      if(!f) CR=0; else CR=1;
+ 233   1      }
+ 234          
+ 235          //相位控制函数
+ 236          xdata char xw=0; //相位
+ 237          void set90(char k){ //设置方波的相位差
+ 238   1        k %= 4;
+ 239   1        if(k<0) k += 4;
+ 240   1        if(k==0) chuX=0;   //移相0度
+ 241   1        if(k==1) chuX=128; //移相180度
+ 242   1        if(k==2) chuX=64;  //移相90度
+ 243   1        if(k==3) chuX=192; //移相270度
+ 244   1        xw = k;
+ 245   1      }
+ 246          void set902() { set90(xw+1); } //相位步进
+ 247          
+ 248          //==============量程控制函数====================
+ 249          xdata char rng=1; //量程
+ 250          void setRng(char k){//切换量程
+ 251   1      if(k==0) Ka=0,Kb=0; //100欧
+ 252   1      if(k==1) Ka=0,Kb=1; //1k欧
+ 253   1      if(k==2) Ka=1,Kb=0; //10k欧
+ 254   1      if(k==3) Ka=1,Kb=1; //100k欧
+ 255   1      rng = k;
+ 256   1      }
+ 257          void setRng2(){ setRng( (rng+1)%4); } //量程步进
+ 258          
+ 259          //==============增益控制函数====================
+ 260          float gain[4]={1,3,10,30};  //增益表
+ 261          char curGain=1; //当前增益索引号
+ 262          void setGain(char k){ //设置电路增益
+ 263   1        if(k>3) k=3;
+ 264   1        if(k<0) k=0;
+ 265   1        if(k==0) K4=0,K6=0; //1倍
+ 266   1        if(k==1) K4=0,K6=1; //3倍
+ 267   1        if(k==2) K4=1,K6=0; //10倍
+ 268   1        if(k==3) K4=1,K6=1; //30倍
+ 269   1        curGain = k;
+ 270   1      }
+ 271          void setGain2(){ setGain((curGain+1)%4); }
+ 272          
+ 273          //==============设置频率====================
+ 274          uchar mT = 6; //测量速度
+ 275          void setF(char k){
+ 276   1        if(k==-1){ //步进
+ 277   2          k = 0;
+ 278   2          if(feq==100)  k=1;
+ 279   2          if(feq==1000) k=2;
+ 280   2          if(feq==7813) k=0;
+ 281   2        }
+ 282   1        if(k==0) { setDDS(100);   K5=0; K8=1; mT=15; } //置为100Hz
+ 283   1        if(k==1) { setDDS(1000);  K5=0; K8=0; mT=6;  } //置为1kHz
+ 284   1        if(k==2) { setDDS(7813);  K5=1; K8=0; mT=6;  } //置为7.8125kHz
+ 285   1      }
+ 286          
+ 287          //==============LCR测量====================
+ 288          xdata int Vxy[4]={0,0,0,0};  //Vxy[Vx1,Vy1,Vx2,Vy2]
+ 289          xdata char Vga[4]={1,1,1,1}; //上下臂增益记录表
+C51 COMPILER V9.60.7.0   1                                                                 08/02/2023 17:01:26 PAGE 6   
+
+ 290          xdata uchar tim=0,tims=0;
+ 291          xdata char pau=0; //暂停坐标自动旋转
+ 292          int Vfull = 9500;
+ 293          code float dwR[4]={20,1000,10000,100000}; //档位电阻表
+ 294          int absMax(int a,int b){
+ 295   1        a=abs(a);
+ 296   1        b=abs(b);
+ 297   1        if(b>a) a=b;
+ 298   1        return a;
+ 299   1      }
+ 300          void timerInter1(void) interrupt 3 {//T1中断
+ 301   1        char a,g; int c;
+ 302   1        static int Ve0=0;
+ 303   1        if(pau) return;
+ 304   1        tims++;
+ 305   1        if(tims>=mT){ //tim进位触发
+ 306   2         tims = 0, tim++;
+ 307   2         if(tim>=8) tim=0;
+ 308   2         a = tim/2; //x1,y1,x2,y2指针
+ 309   2         c = getAD10() + cs.zo;  //读取电压值
+ 310   2         if(tim%2){
+ 311   3           if(Ve0>c) Vxy[a] = Ve0; //保存当前电压
+ 312   3               else      Vxy[a] = -c;
+ 313   3               Vga[a] = curGain; //保存当前增益
+ 314   3         }else Ve0 = c;
+ 315   2         if(tim==3||tim==7){ //上下臂切换
+ 316   3           //电压模值才能反应运放的输出幅度，所以增益切换判断得用模值
+ 317   3               if(tim==3) K3=1, c = absMax(Vxy[2],Vxy[3]), g=Vga[2]; //切换到下臂
+ 318   3               if(tim==7) K3=0, c = absMax(Vxy[0],Vxy[1]), g=Vga[0]; //切换到上臂
+ 319   3               //切换后一定要设定一个g值,不论c为何值
+ 320   3               setGain(g);
+ 321   3           if(c>Vfull)       setGain(g-1);
+ 322   3           if(c<Vfull/33*10) setGain(g+1);
+ 323   3           if(c<Vfull/33*3)  setGain(g+2);
+ 324   3           if(c<Vfull/33*1 ) setGain(g+3);
+ 325   3         }
+ 326   2         set90(tim+1); //相位旋转
+ 327   2        }
+ 328   1      }
+ 329          
+ 330          char sfdw=1; //是否显示单位
+ 331          void showR(char xm){ //显示电阻
+ 332   1        xdata float a,b,c,e,bs;
+ 333   1        xdata float x1 =  Vxy[0]/gain[Vga[0]];
+ 334   1        xdata float y1 =  Vxy[1]/gain[Vga[1]];
+ 335   1        xdata float x2 = -Vxy[2]/gain[Vga[2]];
+ 336   1        xdata float y2 = -Vxy[3]/gain[Vga[3]];
+ 337   1        bs = dwR[rng];
+ 338   1        a = x2*x2+y2*y2;
+ 339   1        b = x1*x2+y1*y2;
+ 340   1        c = x2*y1-x1*y2;
+ 341   1        if(!a) { cls(); disp[3]=115;disp[2]=disp[1]=97; return; }
+ 342   1        if(xm==0){ showDig2(c/a*bs,sfdw); }//显示X值
+ 343   1        if(xm==1){ showDig2(b/a*bs,sfdw); }//显示R值
+ 344   1        if(xm==2){ showDig2(c/a*bs / 6.283/feq, sfdw); }//显示L值
+ 345   1        if(xm==3){ showDig2(a/c/bs / 6.283/feq, sfdw); }//显示C值
+ 346   1        if(xm==4||xm==9){ //显示Q值
+ 347   2          if(!b) { showDig(9999); return; }
+ 348   2              c = fabs(c/b);
+ 349   2              if     (c>=1000) { showDig(999   ); }
+ 350   2          else if(c>=100 ) { showDig(c     ); }
+ 351   2          else if(c>=10  ) { showDig(c*10  );  disp[1] += 4; }
+C51 COMPILER V9.60.7.0   1                                                                 08/02/2023 17:01:26 PAGE 7   
+
+ 352   2          else if(c>=1   ) { showDig(c*100 );  disp[2] += 4; }
+ 353   2          else             { showDig(c*1000);  disp[3] += 4; }
+ 354   2        }
+ 355   1        e = (b*b+c*c)/a;
+ 356   1        if(xm==5){ showDig2(e/c*bs,sfdw); }//显示并联X值
+ 357   1        if(xm==6){ showDig2(e/b*bs,sfdw); }//显示并联R值
+ 358   1        if(xm==7){ showDig2(e/c*bs / 6.283/feq,sfdw); }//显示并联L值
+ 359   1        if(xm==8){ showDig2(c/e/bs / 6.283/feq,sfdw); }//显示并联C值
+ 360   1      
+ 361   1      }
+ 362          //void timerInter(void) interrupt 1 {}//T0中断
+ 363          
+ 364          void showMsg(uchar a){ //临时跳出信息
+ 365   1        P0 = ~a;
+ 366   1        ds0=1, ds1=ds2=ds3=0;
+ 367   1        delay2(50);
+ 368   1      }
+ 369          
+ 370          
+ 371          
+ 372          main(){
+ 373   1      uchar i=0,kn=0,key=0;
+ 374   1      uchar dispN=0; //显示扫描索引
+ 375   1      uchar spkN=0;  //蜂鸣器发声时长
+ 376   1      uchar nn=0;
+ 377   1      uchar XRQ=1;
+ 378   1      
+ 379   1      delay2(40); //启动延时
+ 380   1      cs_RW(0);   //读EEPROM
+ 381   1      
+ 382   1      TCON=0, TMOD=0x12; //将T0置为自动重装定时器，T1置为定时器
+ 383   1      TH1 = 47, TL1 = 171; //20ms秒定时
+ 384   1      TR1=1;  //T1开始计数
+ 385   1      TR0=0;  //T0暂停计数
+ 386   1      ET1=1;  //T1开中断
+ 387   1      ET0=1;  //T1开中断
+ 388   1      EA=1;   //开总中断
+ 389   1      PT0=1;  //设置优先级
+ 390   1      
+ 391   1      
+ 392   1      set_channel(0); //设置AD转换通道
+ 393   1      P2M0 = 0xFF;    //P2.01234567置为推勉输出
+ 394   1      P1M0 = 0xFC;    //P1.234567置为推换口
+ 395   1      P1M1 = 0x03;    //P1.0置为高阻抗
+ 396   1      
+ 397   1      //请注意启动延时0.5秒方可读取cs_RW
+ 398   1      //cs_RW(0); //读取比值基数(调零时已做开机延时，确保电压上升到可读取EEPROW)
+ 399   1      
+ 400   1      PWM_init();//DDS初始化
+ 401   1      set90(2);  //初始设置相位
+ 402   1      setRng(1); //初始设置量程
+ 403   1      setGain(1); //初始设置增益
+ 404   1      setF(1);    //DDS初始设置为1kHz
+ 405   1      
+ 406   1      while(1){
+ 407   2        //显示disp
+ 408   2        nn++;
+ 409   2        dispN=(++dispN)%4; //扫描器移动
+ 410   2        ds0=ds1=ds2=ds3=0;
+ 411   2        if(dispN==0) ds0=1;
+ 412   2        if(dispN==1) ds1=1;
+ 413   2        if(dispN==2) ds2=1;
+C51 COMPILER V9.60.7.0   1                                                                 08/02/2023 17:01:26 PAGE 8   
+
+ 414   2        if(dispN==3) ds3=1;
+ 415   2        P0=~disp[dispN]; //显示
+ 416   2        //扫描键盘
+ 417   2        //键盘响应
+ 418   2        //key = (~P3)&0xfc;
+ 419   2        key = ~P3;
+ 420   2        if(key&&kn<255) kn++; else kn=0;
+ 421   2        for(i=0;key;i++) key/=2; key=i;
+ 422   2        if(kn==20) spkN=50; else key=0;   //当按下一定时间后，key才有效，否则无效。spkN发声时长设置
+ 423   2        if(spkN) spkN--, spk=0; else spk=1; //键盘发声
+ 424   2        //菜单系统
+ 425   2        if(key==8 && menu) { menuB=menu, menu=0; key=0; XRQ=-1;} //菜单键
+ 426   2        if(key==7 && menu) setRng2(); //量程步进
+ 427   2        if(key==6 && menu) setF(-1);  //设置频率
+ 428   2        if(menu==0){ //显示量程和菜单
+ 429   3          showDig(menuB);
+ 430   3              if(key==8) menu = menuB;
+ 431   3              if(key>=1 && key<=7) menu = key;
+ 432   3              key = 0;
+ 433   3        }
+ 434   2        if(menu==1||menu==2){ //自动LCR测量(串联)
+ 435   3          pau = 0;
+ 436   3              if(XRQ==-1) XRQ=1, sfdw=1;
+ 437   3              if(key>=1&&key<=5){ //扩展一位显示
+ 438   4                if(key-1==XRQ) { if(sfdw==0) sfdw = 1; else sfdw = 0; }
+ 439   4                else sfdw = 1;
+ 440   4                XRQ = key-1; //X,R,L,C,Q
+ 441   4              }
+ 442   3              if(key>=1&&key<=5) XRQ = key-1; //X,R,L,C,Q
+ 443   3          if(menu==1) showR(XRQ);
+ 444   3              else        showR(XRQ+5);
+ 445   3        }
+ 446   2        if(menu==3){ //手动调试
+ 447   3          pau = 1;
+ 448   3              if(key==1) { setGain2(); showMsg( zk[curGain] );} //增益控制
+ 449   3              if(key==2) { };
+ 450   3          if(key==3) { K3=~K3;     showMsg(zk[K3]);       } //切换上下臂
+ 451   3          if(key==4) { set902();   showMsg(zk[xw]);       } //相位旋转
+ 452   3          if(nn%64==0) showDig( getAD10());
+ 453   3        }
+ 454   2        if(menu==7){ //设置零点偏移数
+ 455   3              if(key==1) cs.zo += 5; //X键加5
+ 456   3              if(key==2) cs.zo -= 5; //R键减5
+ 457   3          if(key==3) cs_RW(1);   //L键保存
+ 458   3          if(key==4) cs.zo = 0;  //C键清除
+ 459   3              showDig(abs(cs.zo));
+ 460   3              disp[1] += 4;
+ 461   3              if(cs.zo<0) disp[3] = 16;
+ 462   3        }
+ 463   2        delay(4000);
+ 464   2      }//while end
+ 465   1      }
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  1 ERROR(S)

@@ -155,4 +155,5 @@
   ExLib\Include\ExLib_ADC.hpp ExLib\Include\ExLib_EXTI.hpp \
   ExLib\Include\ExLib_System.hpp ExLib\Include\ExLib_Log.hpp \
   ExLib\Include\ExLib_Printable.hpp ExLib\Include\ExLib_FreeRTOS.hpp \
-  ExLib\Include\ExLib_Main.hpp Hardware\Motor.hpp Software\PID.hpp
+  ExLib\Include\ExLib_Main.hpp Hardware\Motor.hpp Software\PID.hpp \
+  Hardware\Servo.hpp

@@ -105,6 +105,14 @@ UART UART0(UART_Periph::UART0);
 
 #include "Motor.hpp"
 #include "PID.hpp"
+#include "Servo.hpp"
+
+void callback(void *unused) {
+}
+
+constexpr float kp = 0.0040,
+                ki = 0.0005,
+                kd = 0.0005;
 
 HardwarePWM Motor0PWMGenerator(HardwarePWM_Periph::Module0Generator3);
 PWM_Channel Motor0A(Motor0PWMGenerator, 6, GPIO_Pin::PD0);
@@ -112,7 +120,7 @@ PWM_Channel Motor0B(Motor0PWMGenerator, 7, GPIO_Pin::PD1);
 Motor Motor0(Motor0A, Motor0B);
 QuadraticEncoder Motor0Encoder(QuadraticEncoder_Periph::QuadraticEncoder1, GPIO_Pin::PC5, GPIO_Pin::PC6);
 
-PID_Add Motor0PID(0.0035 , 0.0005, 0.0);
+PID_Add Motor0PID(kp, ki, kd);
 
 HardwarePWM Motor1PWMGenerator(HardwarePWM_Periph::Module1Generator3);
 PWM_Channel Motor1A(Motor1PWMGenerator, 7, GPIO_Pin::PF3);
@@ -120,27 +128,62 @@ PWM_Channel Motor1B(Motor1PWMGenerator, 6, GPIO_Pin::PF2);
 Motor Motor1(Motor1A, Motor1B);
 QuadraticEncoder Motor1Encoder(QuadraticEncoder_Periph::QuadraticEncoder0, GPIO_Pin::PF0, GPIO_Pin::PF1);
 
-PID_Add Motor1PID(0.0035 , 0.0005, 0.0);
+// PID_Add Motor1PID(0.0035 , 0.0005, 0.0);
+PID_Add Motor1PID(kp, ki, kd);
+
+HardwarePWM ServoPWMGenerator(HardwarePWM_Periph::Module1Generator1);
+PWM_Channel ServoXChannel(ServoPWMGenerator, 2, GPIO_Pin::PA6);
+PWM_Channel ServoYChannel(ServoPWMGenerator, 3, GPIO_Pin::PA7);
+Servo ServoX(ServoXChannel, -180, 180);
+Servo ServoY(ServoYChannel, -180, 180);
+
+I2C I2C0(I2C_Periph::I2C0, GPIO_Pin::PB2, GPIO_Pin::PB3);
+
+
+
 
 int ExLib::usr_main() {
     System::delay(500_ms);
     UART0.begin(115200);
+    UART0.onReceive(*new CallbackFunction(callback));
     System::setDebugStream(UART0);
     Motor0Encoder.begin(true);
     Motor1Encoder.begin(true);
     Motor0PID.setOutputLimits(-1, 1);
-    Motor0PID.setTarget(100);
+    Motor0PID.setTarget(1);
     Motor1PID.setOutputLimits(-1, 1);
-    Motor1PID.setTarget(100);
+    Motor1PID.setTarget(1);
+    ServoX.setAngel(0);
+    ServoY.setAngel(0);
+    I2C0.begin(100_kHz);
+    // ServoXChannel.setDuty(0.08);
+    // ServoYChannel.setDuty(0.08);
+    UART0.println("Begin!");
+    I2C0.beginTransmission(0X0D);
+    I2C0.write(0x0D);
+    UART0.print(I2C0.read(), 16);
+    UART0.println();
+    I2C0.endTransmission();
+
+    I2C0.beginTransmission(0X0D);
+    I2C0.write(0x02);
+    I2C0.write(0x00);
+    I2C0.endTransmission();
+    UART0.println("Inited");
     while (true) {
-        Motor0Encoder.resetCounter();
-        Motor1Encoder.resetCounter();
-        System::delay(50_ms);
-        Motor0PID.setReal(Motor0Encoder.getCounter());
-        Motor1PID.setReal(Motor1Encoder.getCounter());
-        Motor0.run(Motor0PID.compute());
-        Motor1.run(Motor1PID.compute());
-        UART0.printf("Output=%f, Real=%f, Target=%f\n", Motor0PID.getOutput(), Motor0PID.getReal(), Motor0PID.getTarget());
+        int x, y, z;
+
+        I2C0.beginTransmission(0X0D);
+        I2C0.write(0x03);
+        x = (int)I2C0.read() << 8;
+        x |= I2C0.read();
+        z = (int)I2C0.read() << 8;
+        z |= I2C0.read();
+        y = (int)I2C0.read() << 8;
+        y |= I2C0.read();
+        I2C0.endTransmission();
+        UART0.printf("%d,%d,%d\n", x, y, z);
+        System::delay(250_ms);
     }
     return 0;
 }
